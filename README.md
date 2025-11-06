@@ -4,7 +4,7 @@
 
 ---
 
-## 🌍 **Overview**
+## **Overview**
 
 Built to demonstrate the fundamental steps of compilation  from **lexical analysis** to **assembly generation**.  
 
