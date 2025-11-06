@@ -1,0 +1,15 @@
+int main() {
+    int x = 10;
+    int y = 20;
+    int z;
+    z = x + y * 2;
+    if (z > 40) {
+        z = z - 10;
+    } else {
+        z = z + 5;
+    }
+    while (x < 20) {
+        x = x + 1;
+    }
+    return z;
+}
