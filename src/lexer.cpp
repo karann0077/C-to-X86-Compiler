@@ -1,4 +1,4 @@
-// src/lexer.cpp  (REPLACE your existing lexer.cpp with this)
+// src/lexer.cpp  
 #include "lexer.h"
 #include <cctype>
 #include <unordered_map>
@@ -12,7 +12,7 @@ static std::unordered_map<std::string, TokenKind> keywords = {
 };
 
 Lexer::Lexer(const std::string &src_) : src(src_) {
-    // initialize cur by reading the first token
+
     cur = Token{TokenKind::End, "", 0, line};
     cur = next();
 }
