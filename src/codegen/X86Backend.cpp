@@ -26,14 +26,25 @@ void X86Backend::generate(ir::Module& module, std::ostream& out) {
 }
 
 MachineOperand X86Backend::getOperandForValue(ir::Value* val) {
-    // If it's a constant (we hackily detect by lack of '%' in name for literals)
-    // Wait, in IRGenerator we put the literal value in the name.
-    // Let's improve the constant detection.
     if (val->getName().find_first_not_of("0123456789-") == std::string::npos && !val->getName().empty()) {
         return MachineOperand::Imm(std::stoi(val->getName()));
     }
     
-    // Otherwise it's on the stack. Look it up.
+    // Check if already in a register
+    auto it = valueToRegister.find(val);
+    if (it != valueToRegister.end()) {
+        return MachineOperand::Reg(it->second);
+    }
+    
+    // Allocate a register if available
+    if (!freeRegisters.empty()) {
+        X86Reg reg = freeRegisters.back();
+        freeRegisters.pop_back();
+        valueToRegister[val] = reg;
+        return MachineOperand::Reg(reg);
+    }
+    
+    // Spill to stack
     if (stackOffsets.find(val) == stackOffsets.end()) {
         currentStackOffset -= 4; // Allocate 4 bytes
         stackOffsets[val] = currentStackOffset;
@@ -125,16 +136,55 @@ void X86Backend::lowerInstruction(ir::Instruction& inst) {
     }
 }
 
+void X86Backend::computeLiveness(ir::BasicBlock& bb) {
+    int index = 0;
+    for (const auto& inst : bb.getInstructions()) {
+        for (size_t i = 0; i < inst->getNumOperands(); ++i) {
+            ir::Value* op = inst->getOperand(i);
+            // We only care about tracking variables/instructions, not constants
+            if (op->getName().find_first_not_of("0123456789-") != std::string::npos) {
+                lastUses[op] = index;
+            }
+        }
+        index++;
+    }
+}
+
+void X86Backend::freeDeadRegisters(ir::Instruction& inst) {
+    for (size_t i = 0; i < inst.getNumOperands(); ++i) {
+        ir::Value* op = inst.getOperand(i);
+        if (lastUses.find(op) != lastUses.end() && lastUses[op] == currentInstIndex) {
+            // Free the register!
+            auto it = valueToRegister.find(op);
+            if (it != valueToRegister.end()) {
+                freeRegisters.push_back(it->second);
+                valueToRegister.erase(it);
+            }
+        }
+    }
+}
+
 void X86Backend::lowerBasicBlock(ir::BasicBlock& bb) {
     m_instructions.push_back(MachineInstruction(X86InstKind::LABEL, bb.getName()));
+    
+    computeLiveness(bb);
+    currentInstIndex = 0;
+    
     for (const auto& inst : bb.getInstructions()) {
         lowerInstruction(*inst);
+        freeDeadRegisters(*inst);
+        currentInstIndex++;
     }
 }
 
 void X86Backend::lowerFunction(ir::Function& func) {
     stackOffsets.clear();
+    valueToRegister.clear();
+    lastUses.clear();
     currentStackOffset = 0;
+    
+    // Initialize register pool (using 32-bit registers for int operations)
+    freeRegisters = { X86Reg::ECX, X86Reg::EDX, X86Reg::R8D, X86Reg::R9D, X86Reg::R10D, X86Reg::R11D };
 
     emitPrologue(func.getName());
     

@@ -8,7 +8,8 @@ namespace codegen {
 enum class X86Reg {
     RAX, RBX, RCX, RDX, RDI, RSI, RBP, RSP,
     EAX, EBX, ECX, EDX, EDI, ESI,
-    // Add more as needed
+    R8, R9, R10, R11,
+    R8D, R9D, R10D, R11D
 };
 
 enum class OperandKind {
@@ -45,6 +46,14 @@ struct MachineOperand {
                     case X86Reg::EDX: return "edx";
                     case X86Reg::EDI: return "edi";
                     case X86Reg::ESI: return "esi";
+                    case X86Reg::R8: return "r8";
+                    case X86Reg::R9: return "r9";
+                    case X86Reg::R10: return "r10";
+                    case X86Reg::R11: return "r11";
+                    case X86Reg::R8D: return "r8d";
+                    case X86Reg::R9D: return "r9d";
+                    case X86Reg::R10D: return "r10d";
+                    case X86Reg::R11D: return "r11d";
                 }
             case OperandKind::Immediate: return std::to_string(imm);
             case OperandKind::Memory: return "DWORD PTR [" + memStr + "]";

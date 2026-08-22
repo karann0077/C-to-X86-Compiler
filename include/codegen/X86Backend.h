@@ -19,9 +19,19 @@ private:
 
     std::vector<MachineInstruction> m_instructions;
     
-    // Very simple stack allocator (linear) for unoptimized backend
-    std::unordered_map<ir::Value*, int> stackOffsets;
+    // Register Allocation State
+    std::unordered_map<ir::Value*, int> stackOffsets; // For spilled values
     int currentStackOffset = 0;
+    
+    std::vector<X86Reg> freeRegisters;
+    std::unordered_map<ir::Value*, X86Reg> valueToRegister;
+    
+    // Liveness (map value to the instruction index where it is last used)
+    std::unordered_map<ir::Value*, int> lastUses;
+    int currentInstIndex = 0;
+
+    void computeLiveness(ir::BasicBlock& bb);
+    void freeDeadRegisters(ir::Instruction& inst);
 
     void emitPrologue(const std::string& name);
     void emitEpilogue();
