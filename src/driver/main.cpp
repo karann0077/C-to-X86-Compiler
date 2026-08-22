@@ -9,6 +9,9 @@
 #include "sema/SemanticAnalyzer.h"
 #include "ir/IRGenerator.h"
 #include "codegen/X86Backend.h"
+#include "opt/PassManager.h"
+#include "opt/ConstantFoldingPass.h"
+#include "opt/DeadCodeEliminationPass.h"
 
 using namespace cppx86;
 
@@ -22,6 +25,7 @@ int main(int argc, char* argv[]) {
     bool dumpTokens = false;
     bool dumpAst = false;
     bool dumpIr = false;
+    bool dumpOpt = false;
     bool dumpAsm = false;
     bool dumpSema = false;
 
@@ -35,6 +39,8 @@ int main(int argc, char* argv[]) {
             dumpSema = true;
         } else if (arg == "-ir") {
             dumpIr = true;
+        } else if (arg == "-opt") {
+            dumpOpt = true;
         } else if (arg == "-asm") {
             dumpAsm = true;
         } else {
@@ -87,22 +93,7 @@ int main(int argc, char* argv[]) {
                 std::cout << "Semantic analysis completed successfully.\n";
             }
         }
-    } else if (dumpIr) {
-        Lexer lexer(source, filename, diags);
-        Parser parser(lexer, diags);
-        auto tu = parser.parse();
-        
-        if (!diags.hasErrors()) {
-            SemanticAnalyzer sema(diags);
-            sema.analyze(*tu);
-            
-            if (!diags.hasErrors()) {
-                IRGenerator irGen;
-                auto module = irGen.generate(*tu);
-                module->dump(std::cout);
-            }
-        }
-    } else if (dumpAsm) {
+    } else if (dumpIr || dumpOpt || dumpAsm) {
         Lexer lexer(source, filename, diags);
         Parser parser(lexer, diags);
         auto tu = parser.parse();
@@ -115,8 +106,20 @@ int main(int argc, char* argv[]) {
                 IRGenerator irGen;
                 auto module = irGen.generate(*tu);
                 
-                codegen::X86Backend backend;
-                backend.generate(*module, std::cout);
+                opt::PassManager pm;
+                pm.addPass(std::make_unique<opt::ConstantFoldingPass>());
+                pm.addPass(std::make_unique<opt::DeadCodeEliminationPass>());
+                
+                if (dumpOpt) {
+                    pm.run(*module);
+                    module->dump(std::cout);
+                } else if (dumpAsm) {
+                    pm.run(*module); // Run optimizations before codegen
+                    codegen::X86Backend backend;
+                    backend.generate(*module, std::cout);
+                } else if (dumpIr) {
+                    module->dump(std::cout);
+                }
             }
         }
     } else {

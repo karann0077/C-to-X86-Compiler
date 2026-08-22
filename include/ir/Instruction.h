@@ -33,6 +33,7 @@ public:
     
     void addOperand(Value* val) { operands.push_back(val); }
     Value* getOperand(size_t index) const { return operands.at(index); }
+    void setOperand(size_t index, Value* val) { operands[index] = val; }
     size_t getNumOperands() const { return operands.size(); }
 
     void setParent(BasicBlock* bb) { parent = bb; }

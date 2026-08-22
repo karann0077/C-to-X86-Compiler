@@ -19,6 +19,15 @@ public:
         instructions.push_back(std::move(inst));
     }
 
+    void removeInstruction(Instruction* inst) {
+        for (auto it = instructions.begin(); it != instructions.end(); ++it) {
+            if (it->get() == inst) {
+                instructions.erase(it);
+                break;
+            }
+        }
+    }
+
     const std::vector<std::unique_ptr<Instruction>>& getInstructions() const {
         return instructions;
     }
