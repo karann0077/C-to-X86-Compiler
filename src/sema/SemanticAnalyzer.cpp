@@ -1,5 +1,8 @@
 #include "sema/SemanticAnalyzer.h"
 #include "types/BuiltinType.h"
+#include "ast/Declarations/RecordDecl.h"
+#include "ast/Declarations/FieldDecl.h"
+#include "ast/Expressions/MemberExpr.h"
 
 namespace cppx86 {
 
@@ -28,6 +31,8 @@ void SemanticAnalyzer::visit(TranslationUnit& node) {
             visit(*funcDecl);
         } else if (auto varDecl = dynamic_cast<VarDecl*>(decl.get())) {
             visit(*varDecl);
+        } else if (auto recordDecl = dynamic_cast<RecordDecl*>(decl.get())) {
+            visit(*recordDecl);
         }
     }
     leaveScope();
@@ -54,6 +59,39 @@ void SemanticAnalyzer::visit(FunctionDecl& node) {
     }
     
     currentReturnType = nullptr;
+}
+
+void SemanticAnalyzer::visit(FieldDecl& node) {
+    // In a real compiler, fields exist within the class scope
+    TypePtr type = std::make_shared<BuiltinType>(BuiltinTypeKind::Int); // simplified
+    Symbol sym(node.getName(), SymbolKind::Variable, type, &node); // Fields are treated like variables in scope for now
+    if (!currentScope->declare(sym)) {
+        diags.error(node.getLocation(), "Redefinition of field '" + node.getName() + "'");
+    }
+}
+
+void SemanticAnalyzer::visit(RecordDecl& node) {
+    // A Record type represents the class itself
+    TypePtr type = std::make_shared<BuiltinType>(BuiltinTypeKind::Void); // Simplified, should be RecordType
+    Symbol sym(node.getName(), SymbolKind::Type, type, &node);
+    
+    if (!currentScope->declare(sym)) {
+        diags.error(node.getLocation(), "Redefinition of '" + node.getName() + "'");
+    }
+    
+    enterScope();
+    // In C++, the implicit 'this' pointer is available in methods
+    // Let's add it to the class scope so methods can find it.
+    Symbol thisSym("this", SymbolKind::Variable, type, nullptr);
+    currentScope->declare(thisSym);
+
+    for (const auto& field : node.getFields()) {
+        visit(*field);
+    }
+    for (const auto& method : node.getMethods()) {
+        visit(*method);
+    }
+    leaveScope();
 }
 
 void SemanticAnalyzer::visit(VarDecl& node) {
@@ -120,7 +158,15 @@ void SemanticAnalyzer::visitExpr(Expr* node) {
         visit(*var);
     } else if (auto bin = dynamic_cast<BinaryExpr*>(node)) {
         visit(*bin);
+    } else if (auto mem = dynamic_cast<MemberExpr*>(node)) {
+        visit(*mem);
     }
+}
+
+void SemanticAnalyzer::visit(MemberExpr& node) {
+    visitExpr(node.getBase());
+    // For now, assume it always resolves successfully to Int
+    node.setType(std::make_shared<BuiltinType>(BuiltinTypeKind::Int));
 }
 
 void SemanticAnalyzer::visit(LiteralExpr& node) {
@@ -129,12 +175,20 @@ void SemanticAnalyzer::visit(LiteralExpr& node) {
 }
 
 void SemanticAnalyzer::visit(VariableExpr& node) {
-    auto sym = currentScope->lookup(node.getName());
-    if (!sym) {
+    if (auto sym = currentScope->lookup(node.getName())) {
+        node.setType(sym->type);
+        
+        // If the symbol is a field (or we assume it's a field if it's declared in a Record scope)
+        // A simple heuristic for now: if 'this' is in scope, and it's not a local param/var, it might be a field.
+        // Actually, we can check if it was declared in a class scope.
+        // Let's assume all fields are marked by checking if it's not "this" and it exists in a scope above a function scope?
+        // Let's add a quick hack for Phase 14: if the symbol's declaration is a FieldDecl.
+        if (dynamic_cast<FieldDecl*>(sym->declaration)) {
+            node.setIsField(true);
+        }
+    } else {
         diags.error(node.getLocation(), "Use of undeclared identifier '" + node.getName() + "'");
         node.setType(std::make_shared<BuiltinType>(BuiltinTypeKind::Int)); // fallback
-    } else {
-        node.setType(sym->type);
     }
 }
 

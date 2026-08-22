@@ -3,15 +3,46 @@
 namespace cppx86 {
 
 class TranslationUnit;
-// We will add more nodes here as we define them
-// class VariableExpr;
-// class BinaryExpr;
+class FunctionDecl;
+class VarDecl;
+class FieldDecl;
+class RecordDecl;
+
+// Statements
+class CompoundStmt;
+class ReturnStmt;
+class ExprStmt;
+class DeclStmt;
+
+// Expressions
+class LiteralExpr;
+class VariableExpr;
+class BinaryExpr;
+class MemberExpr;
 
 class ASTVisitor {
 public:
     virtual ~ASTVisitor() = default;
+
+    virtual void visit(TranslationUnit& node) {}
     
-    virtual void visit(TranslationUnit& node) = 0;
+    // Declarations
+    virtual void visit(FunctionDecl& node) {}
+    virtual void visit(VarDecl& node) {}
+    virtual void visit(FieldDecl& node) {}
+    virtual void visit(RecordDecl& node) {}
+
+    // Statements
+    virtual void visit(CompoundStmt& node) {}
+    virtual void visit(ReturnStmt& node) {}
+    virtual void visit(ExprStmt& node) {}
+    virtual void visit(DeclStmt& node) {}
+
+    // Expressions
+    virtual void visit(LiteralExpr& node) {}
+    virtual void visit(VariableExpr& node) {}
+    virtual void visit(BinaryExpr& node) {}
+    virtual void visit(MemberExpr& node) {}
 };
 
 } // namespace cppx86

@@ -1,9 +1,12 @@
 #include "parser/Parser.h"
 #include "ast/Declarations/FunctionDecl.h"
 #include "ast/Declarations/VarDecl.h"
+#include "ast/Declarations/RecordDecl.h"
+#include "ast/Declarations/FieldDecl.h"
 #include "ast/Expressions/LiteralExpr.h"
 #include "ast/Expressions/VariableExpr.h"
 #include "ast/Expressions/BinaryExpr.h"
+#include "ast/Expressions/MemberExpr.h"
 #include "ast/Statements/CompoundStmt.h"
 #include "ast/Statements/ReturnStmt.h"
 #include "ast/Statements/ExprStmt.h"
@@ -37,6 +40,8 @@ static int getPrecedence(TokenKind kind) {
         case TokenKind::Star:
         case TokenKind::Slash:
         case TokenKind::Percent: return 110;
+        case TokenKind::Dot:
+        case TokenKind::Arrow: return 120;
         default: return -1;
     }
 }
@@ -95,7 +100,83 @@ TypeNodePtr Parser::parseType() {
     return nullptr;
 }
 
+DeclPtr Parser::parseRecordDecl() {
+    bool isClass = (currentToken.kind == TokenKind::KwClass);
+    advance(); // consume class/struct
+
+    if (currentToken.kind != TokenKind::Identifier) {
+        diags.error(currentToken.location, "Expected identifier after class/struct");
+        return nullptr;
+    }
+    
+    std::string name = currentToken.text;
+    advance();
+    
+    auto record = std::make_unique<RecordDecl>(name, isClass);
+    
+    if (!match(TokenKind::LBrace)) {
+        // Forward declaration
+        expect(TokenKind::Semicolon, "Expected ';' after forward declaration");
+        return record;
+    }
+    
+    while (currentToken.kind != TokenKind::RBrace && currentToken.kind != TokenKind::EndOfFile) {
+        // For now, ignore access specifiers (public, private)
+        if (currentToken.kind == TokenKind::KwPublic || currentToken.kind == TokenKind::KwPrivate || currentToken.kind == TokenKind::KwProtected) {
+            advance();
+            expect(TokenKind::Colon, "Expected ':' after access specifier");
+            continue;
+        }
+        
+        TypeNodePtr type = parseType();
+        if (!type) {
+            diags.error(currentToken.location, "Expected a type specifier in record");
+            advance();
+            continue;
+        }
+
+        if (currentToken.kind != TokenKind::Identifier) {
+            diags.error(currentToken.location, "Expected member name");
+            advance();
+            continue;
+        }
+        
+        std::string memberName = currentToken.text;
+        advance();
+        
+        if (match(TokenKind::LParen)) {
+            // Method
+            auto method = std::make_unique<FunctionDecl>(memberName, std::move(type));
+            method->setIsMethod(true);
+            // skip params for brevity...
+            while (currentToken.kind != TokenKind::RParen && currentToken.kind != TokenKind::EndOfFile) advance();
+            expect(TokenKind::RParen, "Expected ')'");
+            
+            if (currentToken.kind == TokenKind::LBrace) {
+                method->setBody(parseBlock());
+            } else {
+                expect(TokenKind::Semicolon, "Expected ';' after method declaration");
+            }
+            record->addMethod(std::move(method));
+        } else {
+            // Field
+            auto field = std::make_unique<FieldDecl>(memberName, std::move(type));
+            expect(TokenKind::Semicolon, "Expected ';' after field declaration");
+            record->addField(std::move(field));
+        }
+    }
+    
+    expect(TokenKind::RBrace, "Expected '}' at end of class/struct");
+    expect(TokenKind::Semicolon, "Expected ';' after class/struct definition");
+    
+    return record;
+}
+
 DeclPtr Parser::parseDeclaration() {
+    if (currentToken.kind == TokenKind::KwClass || currentToken.kind == TokenKind::KwStruct) {
+        return parseRecordDecl();
+    }
+
     // e.g. int x; or int main() { ... }
     TypeNodePtr type = parseType();
     if (!type) {
@@ -231,10 +312,19 @@ ExprPtr Parser::parseExpressionHelper(int exprPrec) {
         TokenKind op = currentToken.kind;
         advance();
 
-        auto rhs = parseExpressionHelper(tokPrec + 1); // Left associative
-        if (!rhs) return nullptr;
-
-        lhs = std::make_unique<BinaryExpr>(op, std::move(lhs), std::move(rhs));
+        if (op == TokenKind::Dot || op == TokenKind::Arrow) {
+            if (currentToken.kind != TokenKind::Identifier) {
+                diags.error(currentToken.location, "Expected member name");
+                return lhs;
+            }
+            std::string memberName = currentToken.text;
+            advance();
+            lhs = std::make_unique<MemberExpr>(std::move(lhs), memberName, op == TokenKind::Arrow);
+        } else {
+            ExprPtr rhs = parseExpressionHelper(tokPrec + 1);
+            if (!rhs) return lhs;
+            lhs = std::make_unique<BinaryExpr>(op, std::move(lhs), std::move(rhs));
+        }
     }
 }
 

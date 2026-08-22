@@ -21,6 +21,10 @@ set(LEXER_SOURCES
     src/lexer/Lexer.cpp
 )
 
+set(AST_SOURCES
+    src/ast/AST.cpp
+)
+
 set(PARSER_SOURCES
     src/parser/Parser.cpp
 )
@@ -41,6 +45,7 @@ set(CODEGEN_SOURCES
 add_library(cppx86_lib STATIC
     ${COMMON_SOURCES}
     ${LEXER_SOURCES}
+    ${AST_SOURCES}
     ${PARSER_SOURCES}
     ${SEMA_SOURCES}
     ${IR_SOURCES}

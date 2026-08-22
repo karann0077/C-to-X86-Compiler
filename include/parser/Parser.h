@@ -25,6 +25,7 @@ private:
     void expect(TokenKind kind, const std::string& message);
 
     DeclPtr parseDeclaration();
+    DeclPtr parseRecordDecl();
     TypeNodePtr parseType();
     std::unique_ptr<CompoundStmt> parseBlock();
     StmtPtr parseStatement();

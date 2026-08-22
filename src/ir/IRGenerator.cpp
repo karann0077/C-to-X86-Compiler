@@ -1,5 +1,8 @@
 #include "ir/IRGenerator.h"
 #include "types/BuiltinType.h"
+#include "ast/Declarations/RecordDecl.h"
+#include "ast/Declarations/FieldDecl.h"
+#include "ast/Expressions/MemberExpr.h"
 
 namespace cppx86 {
 
@@ -18,7 +21,17 @@ void IRGenerator::visit(TranslationUnit& node) {
             visit(*funcDecl);
         } else if (auto varDecl = dynamic_cast<VarDecl*>(decl.get())) {
             visit(*varDecl); // Global vars not fully supported yet
+        } else if (auto recDecl = dynamic_cast<RecordDecl*>(decl.get())) {
+            visit(*recDecl);
         }
+    }
+}
+
+void IRGenerator::visit(RecordDecl& node) {
+    // In IR, a class is just a struct definition mapping fields to offsets
+    // For now, we'll skip generating full type layouts in the simplistic IR.
+    for (const auto& method : node.getMethods()) {
+        visit(*method);
     }
 }
 
@@ -33,8 +46,18 @@ void IRGenerator::visit(FunctionDecl& node) {
         
         namedValues.clear(); // Clear local variables
         
+        if (node.getIsMethod()) {
+            TypePtr ptrType = std::make_shared<BuiltinType>(BuiltinTypeKind::Int);
+            ir::Value* thisVal = builder.createAlloca(ptrType, "this");
+            namedValues["this"] = thisVal;
+        }
+        
         visit(*node.getBody());
     }
+}
+
+void IRGenerator::visit(FieldDecl& node) {
+    // Fields don't generate instructions on their own, they are part of Record layout
 }
 
 void IRGenerator::visit(VarDecl& node) {
@@ -97,7 +120,25 @@ void IRGenerator::visitExpr(Expr* node) {
         visit(*var);
     } else if (auto bin = dynamic_cast<BinaryExpr*>(node)) {
         visit(*bin);
+    } else if (auto mem = dynamic_cast<MemberExpr*>(node)) {
+        visit(*mem);
     }
+}
+
+void IRGenerator::visit(MemberExpr& node) {
+    // For a MemberExpr `obj.field`, we evaluate `obj` which gives us a pointer (alloca)
+    // Then we would emit a GetElementPtr (GEP) to add the field offset.
+    // For this simple milestone, we'll pretend there's only one field or use a fake GEP.
+    visitExpr(node.getBase());
+    ir::Value* baseVal = lastValue;
+    
+    // We emit a fake offset addition since we don't have struct types fully fleshed out in IR yet.
+    TypePtr type = std::make_shared<BuiltinType>(BuiltinTypeKind::Int);
+    
+    // Create a dummy add for the pointer offset (assuming 4 bytes per field)
+    // Normally this is what a GEP instruction does.
+    ir::Value* offset = new ir::Value(type, "4"); // Just hardcoding offset 4 for demo
+    lastValue = builder.createAdd(baseVal, offset);
 }
 
 void IRGenerator::visit(LiteralExpr& node) {
@@ -107,6 +148,20 @@ void IRGenerator::visit(LiteralExpr& node) {
 }
 
 void IRGenerator::visit(VariableExpr& node) {
+    if (node.getIsField()) {
+        auto it = namedValues.find("this");
+        if (it != namedValues.end()) {
+            TypePtr type = std::make_shared<BuiltinType>(BuiltinTypeKind::Int);
+            ir::Value* thisPtr = builder.createLoad(type, it->second, "this_val");
+            ir::Value* offset = new ir::Value(type, "4"); // dummy offset
+            ir::Value* fieldPtr = builder.createAdd(thisPtr, offset);
+            lastValue = builder.createLoad(type, fieldPtr, node.getName() + "_val");
+        } else {
+            lastValue = nullptr;
+        }
+        return;
+    }
+
     auto it = namedValues.find(node.getName());
     if (it != namedValues.end()) {
         TypePtr type = std::make_shared<BuiltinType>(BuiltinTypeKind::Int);

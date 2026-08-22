@@ -23,21 +23,23 @@ public:
 
     void visit(TranslationUnit& node) override;
     
-    // Declarations
-    void visit(FunctionDecl& node);
-    void visit(VarDecl& node);
+    void visit(FunctionDecl& node) override;
+    void visit(VarDecl& node) override;
+    void visit(FieldDecl& node) override;
+    void visit(RecordDecl& node) override;
     
     // Statements
-    void visit(CompoundStmt& node);
-    void visit(ReturnStmt& node);
-    void visit(ExprStmt& node);
-    void visit(DeclStmt& node);
+    void visit(CompoundStmt& node) override;
+    void visit(ReturnStmt& node) override;
+    void visit(ExprStmt& node) override;
+    void visit(DeclStmt& node) override;
 
     // Expressions
     void visitExpr(Expr* node);
-    void visit(LiteralExpr& node);
-    void visit(VariableExpr& node);
-    void visit(BinaryExpr& node);
+    void visit(LiteralExpr& node) override;
+    void visit(VariableExpr& node) override;
+    void visit(BinaryExpr& node) override;
+    void visit(MemberExpr& node) override;
 
 private:
     DiagnosticEngine& diags;
