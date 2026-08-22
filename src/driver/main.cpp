@@ -4,6 +4,8 @@
 #include <vector>
 #include "lexer/Lexer.h"
 #include "diagnostics/DiagnosticEngine.h"
+#include "parser/Parser.h"
+#include "ast/ASTPrinter.h"
 
 using namespace cppx86;
 
@@ -58,6 +60,17 @@ int main(int argc, char* argv[]) {
                 break;
             }
         }
+    } else if (dumpAst) {
+        Lexer lexer(source, filename, diags);
+        Parser parser(lexer, diags);
+        auto tu = parser.parse();
+        
+        if (!diags.hasErrors()) {
+            ASTPrinter printer;
+            printer.print(*tu);
+        }
+    } else {
+        // Full pipeline would go here
     }
 
     if (diags.hasErrors()) {

@@ -21,9 +21,14 @@ set(LEXER_SOURCES
     src/lexer/Lexer.cpp
 )
 
+set(PARSER_SOURCES
+    src/parser/Parser.cpp
+)
+
 add_library(cppx86_lib STATIC
     ${COMMON_SOURCES}
     ${LEXER_SOURCES}
+    ${PARSER_SOURCES}
 )
 
 # Compiler driver

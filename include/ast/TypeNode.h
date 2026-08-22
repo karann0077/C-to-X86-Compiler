@@ -8,6 +8,8 @@ namespace cppx86 {
 class TypeNode : public ASTNode {
 public:
     virtual ~TypeNode() = default;
+    
+    void accept(ASTVisitor& visitor) override {}
 };
 
 using TypeNodePtr = std::unique_ptr<TypeNode>;

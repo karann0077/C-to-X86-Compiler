@@ -11,6 +11,8 @@ public:
         : Decl(std::move(name)), type(std::move(type)), initializer(std::move(init)) {}
 
     void accept(ASTVisitor& visitor) override {}
+    
+    Expr* getInitializer() const { return initializer.get(); }
 
 private:
     TypeNodePtr type;

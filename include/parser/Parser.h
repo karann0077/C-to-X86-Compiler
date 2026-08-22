@@ -29,6 +29,8 @@ private:
     std::unique_ptr<CompoundStmt> parseBlock();
     StmtPtr parseStatement();
     ExprPtr parseExpression();
+    ExprPtr parsePrimary();
+    ExprPtr parseExpressionHelper(int exprPrec);
 };
 
 } // namespace cppx86

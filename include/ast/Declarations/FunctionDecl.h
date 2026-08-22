@@ -22,6 +22,8 @@ public:
 
     void setBody(std::unique_ptr<CompoundStmt> b) { body = std::move(b); }
     
+    CompoundStmt* getBody() const { return body.get(); }
+    
     void accept(ASTVisitor& visitor) override {}
 
 private:
