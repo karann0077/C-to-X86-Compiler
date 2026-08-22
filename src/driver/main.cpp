@@ -15,11 +15,20 @@ int main(int argc, char* argv[]) {
 
     std::string filename;
     bool dumpTokens = false;
+    bool dumpAst = false;
+    bool dumpIr = false;
+    bool dumpAsm = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "-tokens") {
             dumpTokens = true;
+        } else if (arg == "-ast") {
+            dumpAst = true;
+        } else if (arg == "-ir") {
+            dumpIr = true;
+        } else if (arg == "-asm") {
+            dumpAsm = true;
         } else {
             filename = arg;
         }

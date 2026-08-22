@@ -149,6 +149,46 @@ Token Lexer::number() {
     return Token(isFloat ? TokenKind::FloatLiteral : TokenKind::IntegerLiteral, text, startLoc);
 }
 
+Token Lexer::stringLiteral() {
+    SourceLocation startLoc = currentLocation();
+    std::string text;
+    nextChar(); // consume opening quote
+    
+    while (!isAtEnd() && peekChar() != '"' && peekChar() != '\n') {
+        if (peekChar() == '\\') {
+            text += nextChar(); // consume escape backslash
+        }
+        text += nextChar();
+    }
+    
+    if (isAtEnd() || peekChar() == '\n') {
+        return errorToken("Unterminated string literal");
+    }
+    
+    nextChar(); // consume closing quote
+    return Token(TokenKind::StringLiteral, text, startLoc);
+}
+
+Token Lexer::charLiteral() {
+    SourceLocation startLoc = currentLocation();
+    std::string text;
+    nextChar(); // consume opening quote
+    
+    while (!isAtEnd() && peekChar() != '\'' && peekChar() != '\n') {
+        if (peekChar() == '\\') {
+            text += nextChar(); // consume escape backslash
+        }
+        text += nextChar();
+    }
+    
+    if (isAtEnd() || peekChar() == '\n') {
+        return errorToken("Unterminated character literal");
+    }
+    
+    nextChar(); // consume closing quote
+    return Token(TokenKind::CharLiteral, text, startLoc);
+}
+
 Token Lexer::advanceToken() {
     skipWhitespaceAndComments();
 
@@ -225,10 +265,10 @@ Token Lexer::advanceToken() {
         case '[': return Token(TokenKind::LBracket, "[", startLoc);
         case ']': return Token(TokenKind::RBracket, "]", startLoc);
         
-        // Strings and chars handled later in milestones
         case '"':
+            return stringLiteral();
         case '\'':
-            return errorToken("Strings and chars not fully implemented yet");
+            return charLiteral();
 
         default:
             return errorToken("Unexpected character");
