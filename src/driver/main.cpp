@@ -6,6 +6,7 @@
 #include "diagnostics/DiagnosticEngine.h"
 #include "parser/Parser.h"
 #include "ast/ASTPrinter.h"
+#include "sema/SemanticAnalyzer.h"
 
 using namespace cppx86;
 
@@ -20,6 +21,7 @@ int main(int argc, char* argv[]) {
     bool dumpAst = false;
     bool dumpIr = false;
     bool dumpAsm = false;
+    bool dumpSema = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -27,6 +29,8 @@ int main(int argc, char* argv[]) {
             dumpTokens = true;
         } else if (arg == "-ast") {
             dumpAst = true;
+        } else if (arg == "-sema") {
+            dumpSema = true;
         } else if (arg == "-ir") {
             dumpIr = true;
         } else if (arg == "-asm") {
@@ -68,6 +72,18 @@ int main(int argc, char* argv[]) {
         if (!diags.hasErrors()) {
             ASTPrinter printer;
             printer.print(*tu);
+        }
+    } else if (dumpSema) {
+        Lexer lexer(source, filename, diags);
+        Parser parser(lexer, diags);
+        auto tu = parser.parse();
+        
+        if (!diags.hasErrors()) {
+            SemanticAnalyzer sema(diags);
+            sema.analyze(*tu);
+            if (!diags.hasErrors()) {
+                std::cout << "Semantic analysis completed successfully.\n";
+            }
         }
     } else {
         // Full pipeline would go here

@@ -25,10 +25,15 @@ set(PARSER_SOURCES
     src/parser/Parser.cpp
 )
 
+set(SEMA_SOURCES
+    src/sema/SemanticAnalyzer.cpp
+)
+
 add_library(cppx86_lib STATIC
     ${COMMON_SOURCES}
     ${LEXER_SOURCES}
     ${PARSER_SOURCES}
+    ${SEMA_SOURCES}
 )
 
 # Compiler driver
