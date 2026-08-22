@@ -58,7 +58,7 @@ private:
     int nextTempId;
 
     std::string getTempName() {
-        return std::to_string(nextTempId++);
+        return "t" + std::to_string(nextTempId++);
     }
 
     Instruction* insert(std::unique_ptr<Instruction> inst) {

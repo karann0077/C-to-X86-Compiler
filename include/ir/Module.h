@@ -21,6 +21,10 @@ public:
 
     const std::string& getName() const { return name; }
     
+    const std::vector<std::unique_ptr<Function>>& getFunctions() const {
+        return functions;
+    }
+    
     void dump(std::ostream& os) const {
         os << "; Module: " << name << "\n\n";
         for (const auto& func : functions) {

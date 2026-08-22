@@ -34,12 +34,17 @@ set(IR_SOURCES
     src/ir/IRGenerator.cpp
 )
 
+set(CODEGEN_SOURCES
+    src/codegen/X86Backend.cpp
+)
+
 add_library(cppx86_lib STATIC
     ${COMMON_SOURCES}
     ${LEXER_SOURCES}
     ${PARSER_SOURCES}
     ${SEMA_SOURCES}
     ${IR_SOURCES}
+    ${CODEGEN_SOURCES}
 )
 
 # Compiler driver
