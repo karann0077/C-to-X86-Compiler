@@ -7,6 +7,7 @@
 #include "parser/Parser.h"
 #include "ast/ASTPrinter.h"
 #include "sema/SemanticAnalyzer.h"
+#include "ir/IRGenerator.h"
 
 using namespace cppx86;
 
@@ -83,6 +84,21 @@ int main(int argc, char* argv[]) {
             sema.analyze(*tu);
             if (!diags.hasErrors()) {
                 std::cout << "Semantic analysis completed successfully.\n";
+            }
+        }
+    } else if (dumpIr) {
+        Lexer lexer(source, filename, diags);
+        Parser parser(lexer, diags);
+        auto tu = parser.parse();
+        
+        if (!diags.hasErrors()) {
+            SemanticAnalyzer sema(diags);
+            sema.analyze(*tu);
+            
+            if (!diags.hasErrors()) {
+                IRGenerator irGen;
+                auto module = irGen.generate(*tu);
+                module->dump(std::cout);
             }
         }
     } else {

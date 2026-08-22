@@ -29,11 +29,17 @@ set(SEMA_SOURCES
     src/sema/SemanticAnalyzer.cpp
 )
 
+set(IR_SOURCES
+    src/ir/Instruction.cpp
+    src/ir/IRGenerator.cpp
+)
+
 add_library(cppx86_lib STATIC
     ${COMMON_SOURCES}
     ${LEXER_SOURCES}
     ${PARSER_SOURCES}
     ${SEMA_SOURCES}
+    ${IR_SOURCES}
 )
 
 # Compiler driver
