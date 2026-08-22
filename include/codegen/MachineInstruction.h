@@ -15,7 +15,8 @@ enum class X86Reg {
 enum class OperandKind {
     Register,
     Immediate,
-    Memory // e.g. [rbp - 4]
+    Memory, // e.g. [rbp - 4]
+    Label
 };
 
 struct MachineOperand {
@@ -27,6 +28,7 @@ struct MachineOperand {
     static MachineOperand Reg(X86Reg r) { return {OperandKind::Register, r, 0, ""}; }
     static MachineOperand Imm(int i) { return {OperandKind::Immediate, X86Reg::RAX, i, ""}; }
     static MachineOperand Mem(std::string m) { return {OperandKind::Memory, X86Reg::RAX, 0, std::move(m)}; }
+    static MachineOperand Lbl(std::string m) { return {OperandKind::Label, X86Reg::RAX, 0, std::move(m)}; }
 
     std::string toString() const {
         switch (kind) {
@@ -57,13 +59,15 @@ struct MachineOperand {
                 }
             case OperandKind::Immediate: return std::to_string(imm);
             case OperandKind::Memory: return "DWORD PTR [" + memStr + "]";
+            case OperandKind::Label: return memStr;
         }
         return "";
     }
 };
 
 enum class X86InstKind {
-    MOV, ADD, SUB, IMUL, IDIV, RET, PUSH, POP, LABEL
+    MOV, ADD, SUB, IMUL, IDIV, RET, PUSH, POP, LABEL,
+    JMP, CMP, JE, JNE
 };
 
 class MachineInstruction {
@@ -87,7 +91,11 @@ public:
             case X86InstKind::RET: res = "ret"; break;
             case X86InstKind::PUSH: res = "push"; break;
             case X86InstKind::POP: res = "pop"; break;
-            default: break;
+            case X86InstKind::JMP: res = "jmp"; break;
+            case X86InstKind::CMP: res = "cmp"; break;
+            case X86InstKind::JE: res = "je"; break;
+            case X86InstKind::JNE: res = "jne"; break;
+            default: res = "unknown"; break;
         }
 
         if (!operands.empty()) {

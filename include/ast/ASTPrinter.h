@@ -8,6 +8,9 @@
 #include "ast/Statements/ReturnStmt.h"
 #include "ast/Statements/ExprStmt.h"
 #include "ast/Statements/DeclStmt.h"
+#include "ast/Statements/IfStmt.h"
+#include "ast/Statements/WhileStmt.h"
+#include "ast/Expr.h"
 #include "ast/Declarations/FunctionDecl.h"
 #include "ast/Declarations/VarDecl.h"
 #include <iostream>
@@ -34,7 +37,7 @@ public:
         indent--;
     }
 
-    void visit(FunctionDecl& node) {
+    void visit(FunctionDecl& node) override {
         printIndent();
         std::cout << "FunctionDecl: " << node.getName() << "\n";
         indent++;
@@ -44,7 +47,7 @@ public:
         indent--;
     }
 
-    void visit(VarDecl& node) {
+    void visit(VarDecl& node) override {
         printIndent();
         std::cout << "VarDecl: " << node.getName() << "\n";
         indent++;
@@ -54,25 +57,17 @@ public:
         indent--;
     }
 
-    void visit(CompoundStmt& node) {
+    void visit(CompoundStmt& node) override {
         printIndent();
         std::cout << "CompoundStmt\n";
         indent++;
         for (const auto& stmt : node.getStatements()) {
-            if (auto ret = dynamic_cast<ReturnStmt*>(stmt.get())) {
-                visit(*ret);
-            } else if (auto cmp = dynamic_cast<CompoundStmt*>(stmt.get())) {
-                visit(*cmp);
-            } else if (auto exp = dynamic_cast<ExprStmt*>(stmt.get())) {
-                visit(*exp);
-            } else if (auto ds = dynamic_cast<DeclStmt*>(stmt.get())) {
-                visit(*ds);
-            }
+            stmt->accept(*this);
         }
         indent--;
     }
 
-    void visit(DeclStmt& node) {
+    void visit(DeclStmt& node) override {
         printIndent();
         std::cout << "DeclStmt\n";
         indent++;
@@ -84,7 +79,7 @@ public:
         indent--;
     }
 
-    void visit(ReturnStmt& node) {
+    void visit(ReturnStmt& node) override {
         printIndent();
         std::cout << "ReturnStmt\n";
         indent++;
@@ -94,13 +89,32 @@ public:
         indent--;
     }
 
-    void visit(ExprStmt& node) {
+    void visit(ExprStmt& node) override {
         printIndent();
         std::cout << "ExprStmt\n";
         indent++;
         if (node.getExpr()) {
             visitExpr(node.getExpr());
         }
+        indent--;
+    }
+
+    void visit(IfStmt& node) override {
+        printIndent();
+        std::cout << "IfStmt\n";
+        indent++;
+        if (node.getCondition()) visitExpr(node.getCondition());
+        if (node.getThenBlock()) node.getThenBlock()->accept(*this);
+        if (node.getElseBlock()) node.getElseBlock()->accept(*this);
+        indent--;
+    }
+
+    void visit(WhileStmt& node) override {
+        printIndent();
+        std::cout << "WhileStmt\n";
+        indent++;
+        if (node.getCondition()) visitExpr(node.getCondition());
+        if (node.getBody()) node.getBody()->accept(*this);
         indent--;
     }
 

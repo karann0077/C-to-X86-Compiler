@@ -3,6 +3,8 @@
 #include "ast/Declarations/RecordDecl.h"
 #include "ast/Declarations/FieldDecl.h"
 #include "ast/Expressions/MemberExpr.h"
+#include "ast/Statements/IfStmt.h"
+#include "ast/Statements/WhileStmt.h"
 
 namespace cppx86 {
 
@@ -77,15 +79,7 @@ void IRGenerator::visit(VarDecl& node) {
 
 void IRGenerator::visit(CompoundStmt& node) {
     for (const auto& stmt : node.getStatements()) {
-        if (auto ret = dynamic_cast<ReturnStmt*>(stmt.get())) {
-            visit(*ret);
-        } else if (auto cmp = dynamic_cast<CompoundStmt*>(stmt.get())) {
-            visit(*cmp);
-        } else if (auto exp = dynamic_cast<ExprStmt*>(stmt.get())) {
-            visit(*exp);
-        } else if (auto ds = dynamic_cast<DeclStmt*>(stmt.get())) {
-            visit(*ds);
-        }
+        stmt->accept(*this);
     }
 }
 
@@ -96,6 +90,57 @@ void IRGenerator::visit(ReturnStmt& node) {
     } else {
         builder.createRet();
     }
+}
+
+void IRGenerator::visit(IfStmt& node) {
+    ir::BasicBlock* thenBB = currentFunction->createBasicBlock("if.then");
+    ir::BasicBlock* elseBB = node.getElseBlock() ? currentFunction->createBasicBlock("if.else") : nullptr;
+    ir::BasicBlock* mergeBB = currentFunction->createBasicBlock("if.end");
+
+    // Evaluate condition
+    visitExpr(node.getCondition());
+    ir::Value* condVal = lastValue;
+
+    // Branch
+    builder.createCondBr(condVal, thenBB, elseBB ? elseBB : mergeBB);
+
+    // Then block
+    builder.setInsertPoint(thenBB);
+    node.getThenBlock()->accept(*this);
+    builder.createBr(mergeBB); // Merge
+
+    // Else block
+    if (elseBB) {
+        builder.setInsertPoint(elseBB);
+        node.getElseBlock()->accept(*this);
+        builder.createBr(mergeBB); // Merge
+    }
+
+    // Continue at merge block
+    builder.setInsertPoint(mergeBB);
+}
+
+void IRGenerator::visit(WhileStmt& node) {
+    ir::BasicBlock* condBB = currentFunction->createBasicBlock("while.cond");
+    ir::BasicBlock* bodyBB = currentFunction->createBasicBlock("while.body");
+    ir::BasicBlock* endBB = currentFunction->createBasicBlock("while.end");
+
+    // Jump to condition block
+    builder.createBr(condBB);
+
+    // Condition block
+    builder.setInsertPoint(condBB);
+    visitExpr(node.getCondition());
+    ir::Value* condVal = lastValue;
+    builder.createCondBr(condVal, bodyBB, endBB);
+
+    // Body block
+    builder.setInsertPoint(bodyBB);
+    node.getBody()->accept(*this);
+    builder.createBr(condBB); // loop back
+
+    // End block
+    builder.setInsertPoint(endBB);
 }
 
 void IRGenerator::visit(ExprStmt& node) {
@@ -172,6 +217,25 @@ void IRGenerator::visit(VariableExpr& node) {
 }
 
 void IRGenerator::visit(BinaryExpr& node) {
+    if (node.getOp() == TokenKind::Assign) {
+        // Assignment requires an L-value on the left side.
+        // For simplicity, we just look up the named value directly instead of full L-value evaluation.
+        ir::Value* lhsPtr = nullptr;
+        if (auto varExpr = dynamic_cast<VariableExpr*>(node.getLHS())) {
+            auto it = namedValues.find(varExpr->getName());
+            if (it != namedValues.end()) lhsPtr = it->second;
+        }
+        
+        visitExpr(node.getRHS());
+        ir::Value* rhs = lastValue;
+        
+        if (lhsPtr && rhs) {
+            builder.createStore(rhs, lhsPtr);
+            lastValue = rhs; // Assignment evaluates to the assigned value
+        }
+        return;
+    }
+
     visitExpr(node.getLHS());
     ir::Value* lhs = lastValue;
     

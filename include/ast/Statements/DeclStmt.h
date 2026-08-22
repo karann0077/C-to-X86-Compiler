@@ -8,7 +8,9 @@ class DeclStmt : public Stmt {
 public:
     DeclStmt(DeclPtr decl) : decl(std::move(decl)) {}
 
-    void accept(ASTVisitor& visitor) override {}
+    void accept(ASTVisitor& visitor) override {
+        visitor.visit(*this);
+    }
 
     Decl* getDecl() const { return decl.get(); }
 

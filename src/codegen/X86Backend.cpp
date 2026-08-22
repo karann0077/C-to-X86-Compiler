@@ -132,6 +132,24 @@ void X86Backend::lowerInstruction(ir::Instruction& inst) {
             emitEpilogue();
             break;
         }
+        case ir::InstructionKind::Br: {
+            ir::BasicBlock* target = static_cast<ir::BasicBlock*>(inst.getOperand(0));
+            emit(X86InstKind::JMP, MachineOperand::Lbl(target->getName()));
+            break;
+        }
+        case ir::InstructionKind::CondBr: {
+            MachineOperand cond = getOperandForValue(inst.getOperand(0));
+            ir::BasicBlock* trueTarget = static_cast<ir::BasicBlock*>(inst.getOperand(1));
+            ir::BasicBlock* falseTarget = static_cast<ir::BasicBlock*>(inst.getOperand(2));
+            
+            // Compare condition with 0
+            emit(X86InstKind::CMP, cond, MachineOperand::Imm(0));
+            // Jump to false target if equal to 0 (false)
+            emit(X86InstKind::JE, MachineOperand::Lbl(falseTarget->getName()));
+            // Otherwise jump to true target
+            emit(X86InstKind::JMP, MachineOperand::Lbl(trueTarget->getName()));
+            break;
+        }
         default: break; // Handle other instructions later
     }
 }

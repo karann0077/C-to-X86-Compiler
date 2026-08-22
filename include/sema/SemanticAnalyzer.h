@@ -33,6 +33,8 @@ public:
     void visit(ReturnStmt& node) override;
     void visit(ExprStmt& node) override;
     void visit(DeclStmt& node) override;
+    void visit(IfStmt& node) override;
+    void visit(WhileStmt& node) override;
 
     // Expressions
     void visitExpr(Expr* node);

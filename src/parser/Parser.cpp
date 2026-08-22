@@ -11,6 +11,8 @@
 #include "ast/Statements/ReturnStmt.h"
 #include "ast/Statements/ExprStmt.h"
 #include "ast/Statements/DeclStmt.h"
+#include "ast/Statements/IfStmt.h"
+#include "ast/Statements/WhileStmt.h"
 
 namespace cppx86 {
 
@@ -246,14 +248,6 @@ std::unique_ptr<CompoundStmt> Parser::parseBlock() {
 }
 
 StmtPtr Parser::parseStatement() {
-    if (currentToken.kind == TokenKind::KwInt || currentToken.kind == TokenKind::KwVoid || currentToken.kind == TokenKind::KwFloat) {
-        auto decl = parseDeclaration();
-        if (decl) {
-            return std::make_unique<DeclStmt>(std::move(decl));
-        }
-        return nullptr;
-    }
-
     if (currentToken.kind == TokenKind::KwReturn) {
         advance();
         ExprPtr expr = nullptr;
@@ -266,6 +260,41 @@ StmtPtr Parser::parseStatement() {
     
     if (currentToken.kind == TokenKind::LBrace) {
         return parseBlock();
+    }
+    
+    if (currentToken.kind == TokenKind::KwIf) {
+        advance();
+        expect(TokenKind::LParen, "Expected '(' after 'if'");
+        ExprPtr cond = parseExpression();
+        expect(TokenKind::RParen, "Expected ')' after if condition");
+        
+        StmtPtr thenBlock = parseStatement();
+        StmtPtr elseBlock = nullptr;
+        
+        if (match(TokenKind::KwElse)) {
+            elseBlock = parseStatement();
+        }
+        
+        return std::make_unique<IfStmt>(std::move(cond), std::move(thenBlock), std::move(elseBlock));
+    }
+    
+    if (currentToken.kind == TokenKind::KwWhile) {
+        advance();
+        expect(TokenKind::LParen, "Expected '(' after 'while'");
+        ExprPtr cond = parseExpression();
+        expect(TokenKind::RParen, "Expected ')' after while condition");
+        
+        StmtPtr body = parseStatement();
+        
+        return std::make_unique<WhileStmt>(std::move(cond), std::move(body));
+    }
+
+    if (currentToken.kind == TokenKind::KwInt || currentToken.kind == TokenKind::KwVoid || currentToken.kind == TokenKind::KwFloat) {
+        auto decl = parseDeclaration();
+        if (decl) {
+            return std::make_unique<DeclStmt>(std::move(decl));
+        }
+        return nullptr;
     }
     
     // Otherwise, expression statement

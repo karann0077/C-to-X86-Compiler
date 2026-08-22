@@ -3,6 +3,8 @@
 #include "ast/Declarations/RecordDecl.h"
 #include "ast/Declarations/FieldDecl.h"
 #include "ast/Expressions/MemberExpr.h"
+#include "ast/Statements/IfStmt.h"
+#include "ast/Statements/WhileStmt.h"
 
 namespace cppx86 {
 
@@ -112,15 +114,7 @@ void SemanticAnalyzer::visit(VarDecl& node) {
 void SemanticAnalyzer::visit(CompoundStmt& node) {
     enterScope();
     for (const auto& stmt : node.getStatements()) {
-        if (auto ret = dynamic_cast<ReturnStmt*>(stmt.get())) {
-            visit(*ret);
-        } else if (auto cmp = dynamic_cast<CompoundStmt*>(stmt.get())) {
-            visit(*cmp);
-        } else if (auto exp = dynamic_cast<ExprStmt*>(stmt.get())) {
-            visit(*exp);
-        } else if (auto ds = dynamic_cast<DeclStmt*>(stmt.get())) {
-            visit(*ds);
-        }
+        stmt->accept(*this);
     }
     leaveScope();
 }
@@ -149,6 +143,17 @@ void SemanticAnalyzer::visit(DeclStmt& node) {
     } else if (auto funcDecl = dynamic_cast<FunctionDecl*>(node.getDecl())) {
         visit(*funcDecl);
     }
+}
+
+void SemanticAnalyzer::visit(IfStmt& node) {
+    if (node.getCondition()) visitExpr(node.getCondition());
+    if (node.getThenBlock()) node.getThenBlock()->accept(*this);
+    if (node.getElseBlock()) node.getElseBlock()->accept(*this);
+}
+
+void SemanticAnalyzer::visit(WhileStmt& node) {
+    if (node.getCondition()) visitExpr(node.getCondition());
+    if (node.getBody()) node.getBody()->accept(*this);
 }
 
 void SemanticAnalyzer::visitExpr(Expr* node) {

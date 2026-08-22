@@ -35,6 +35,20 @@ public:
         return insert(std::move(inst));
     }
     
+    Instruction* createBr(BasicBlock* target) {
+        auto inst = std::make_unique<Instruction>(InstructionKind::Br, nullptr);
+        inst->addOperand(target);
+        return insert(std::move(inst));
+    }
+    
+    Instruction* createCondBr(Value* cond, BasicBlock* trueTarget, BasicBlock* falseTarget) {
+        auto inst = std::make_unique<Instruction>(InstructionKind::CondBr, nullptr);
+        inst->addOperand(cond);
+        inst->addOperand(trueTarget);
+        inst->addOperand(falseTarget);
+        return insert(std::move(inst));
+    }
+    
     Instruction* createAlloca(TypePtr type, const std::string& name = "") {
         auto inst = std::make_unique<Instruction>(InstructionKind::Alloca, std::move(type), name.empty() ? getTempName() : name);
         return insert(std::move(inst));

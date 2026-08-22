@@ -10,7 +10,9 @@ public:
         statements.push_back(std::move(stmt));
     }
     
-    void accept(ASTVisitor& visitor) override {}
+    void accept(ASTVisitor& visitor) override {
+        visitor.visit(*this);
+    }
 
     const std::vector<StmtPtr>& getStatements() const { return statements; }
 

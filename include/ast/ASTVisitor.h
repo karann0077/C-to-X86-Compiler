@@ -13,6 +13,8 @@ class CompoundStmt;
 class ReturnStmt;
 class ExprStmt;
 class DeclStmt;
+class IfStmt;
+class WhileStmt;
 
 // Expressions
 class LiteralExpr;
@@ -37,6 +39,8 @@ public:
     virtual void visit(ReturnStmt& node) {}
     virtual void visit(ExprStmt& node) {}
     virtual void visit(DeclStmt& node) {}
+    virtual void visit(IfStmt& node) {}
+    virtual void visit(WhileStmt& node) {}
 
     // Expressions
     virtual void visit(LiteralExpr& node) {}
