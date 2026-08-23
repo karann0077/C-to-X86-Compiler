@@ -1,254 +1,125 @@
-# ⚙️ A Minimal C++ to x86 Compiler**
+# ⚙️ C-to-X86-Compiler
 
->  A lightweight compiler written in **C++17** that translates a subset of C++-like syntax into **x86 assembly**.
+A modular, multi-pass C++20-subset compiler targeting x86-64 Linux. This compiler has been completely re-architected from the ground up to follow modern compiler design principles, featuring distinct frontend, middle-end, and backend phases.
 
 ---
 
 ## **Overview**
 
-Built to demonstrate the fundamental steps of compilation  from **lexical analysis** to **assembly generation**.  
+This repository contains a fully functional compiler that translates a subset of C++ into Intel-syntax x86-64 assembly. It was built incrementally through an 18-phase roadmap to demonstrate how production-grade compilers like Clang and GCC operate.
 
-This project aims to **help learners understand how compilers actually work**, covering:
-- **Tokenization**  
-- **Parsing**  
-- **Abstract Syntax Tree (AST)** creation  
-- **Code generation** for x86-64 assembly  
-
----
-
-## **Project Goals**
-
--  Build a **self-contained compiler** with no external frameworks  
--  Implement a **recursive descent parser** for C-like syntax  
--  Generate **x86-64 assembly** output  
--  Provide **readable, beginner-friendly code**  
--  Serve as a foundation for further compiler projects or experiments  
+### Key Features
+- **Modern Architecture**: Distinct stages for Lexical Analysis, Parsing, Semantic Analysis, Intermediate Representation (IR), Optimization, and Code Generation.
+- **Advanced C++ Support**: Supports primitive types, pointers, arrays, structs/classes, methods, fields, implicit `this` pointer offset calculations, and complex control flow (`if`, `else`, `while`).
+- **Resilient Error Recovery**: Features a modern `DiagnosticEngine` with source code context (color-coded carets `^`) and a Parser implementing **Panic Mode Error Recovery** (token synchronization) to prevent cascading errors on syntax violations.
+- **SSA-inspired IR**: An Intermediate Representation utilizing Basic Blocks and Instruction objects for structural control flow.
+- **Optimization Passes**: Pluggable optimization pipeline including Constant Folding and Dead Code Elimination.
+- **Compiler Driver**: A robust CLI mimicking GCC/Clang with support for multi-file compilation, automated linker invocation, and pipeline introspection flags (`-ast`, `-ir`, `-asm`, etc.).
 
 ---
 
-## **Architecture**
+## **Architecture Pipeline**
 
 ```
-Source Code (.tc)
-     ↓
-[ Lexer ]  → Converts characters into tokens
-     ↓
-[ Parser ] → Builds an Abstract Syntax Tree (AST)
-     ↓
-[ CodeGen ] → Produces x86-64 assembly (.s)
-     ↓
-[ Assembler + Linker ] → Generates final executable
+Source Code (.cpp)
+       ↓
+[ Lexer ]             → Emits a stream of expanded TokenKinds
+       ↓
+[ Parser ]            → Pratt-parsing & Recursive Descent → Abstract Syntax Tree (AST)
+       ↓
+[ Semantic Analyzer ] → Scoping, Type Checking, Symbol Resolution
+       ↓
+[ IR Generator ]      → Lowers AST into BasicBlock & Instruction IR
+       ↓
+[ Optimizer ]         → Runs pass manager (Constant Folding, DCE)
+       ↓
+[ x86-64 Backend ]    → Instruction Selection & System V AMD64 ABI Lowering
+       ↓
+[ GCC / Linker ]      → Auto-links generated assembly into final ELF executable
 ```
 
 ---
 
-##  **Project Structure**
-
-```
-tinycc/
-├── src/
-│   ├── lexer.cpp
-│   ├── lexer.h     
-│   ├── parser.cpp
-│   ├── parser.h     
-│   ├── main.cpp    
-│   ├── codegen.cpp        
-│   ├── codegen.h    
-│   ├── ast.h     
-├── test/
-│   └── sample.tc      
-└── README
-```
-
----
-
-##  **Build Instructions**
+## **Build Instructions**
 
 ### **Prerequisites**
-Make sure you have:
-- **GCC** or **Clang** (with C++17 support)  
-- **Linux x86_64** (preferred) or macOS (Intel)  
-- `make` (optional)
+- **CMake** (3.10+)
+- A C++20 compatible compiler (GCC or Clang)
+- **GoogleTest** (Optional, for running tests)
 
-> **Note:** The provided code generator emits **Intel style x86-64 assembly** and targets the **System V ABI** (Linux x86_64). If you are on macOS (especially Apple Silicon / arm64), see the **Platform Notes** section below.
-
----
-
-###  **Build the Compiler**
-
+### **Building from Source**
 ```bash
-g++ -std=c++17 -O0 -g -Isrc -o tinycc src/main.cpp src/lexer.cpp src/parser.cpp src/codegen.cpp
+mkdir build
+cd build
+cmake ..
+make
+```
+This will produce the `cppx86_test` compiler executable in the `build/` directory (or in root depending on build).
+
+### **Running Tests**
+```bash
+cd build
+ctest --output-on-failure
 ```
 
-This will produce an executable named `tinycc` in the project root.
-
 ---
 
-###  **Run the Compiler**
+## **Usage**
+
+The compiler driver mimics standard compiler flags:
 
 ```bash
-./tinycc test/sample.tc
+# Compile and link multiple files into an executable
+./cppx86_test main.cpp utils.cpp -o my_app
+
+# Compile to assembly only
+./cppx86_test -c main.cpp
 ```
 
-This generates the x86 assembly output file:  
-`test/sample.tc.s`
+### **Pipeline Introspection Flags**
+You can halt the compilation pipeline at various stages to inspect internal representations:
 
----
+- `-tokens` : Dump the lexical token stream
+- `-ast`    : Dump the Abstract Syntax Tree (AST)
+- `-sema`   : Halt after Semantic Analysis (verification mode)
+- `-ir`     : Dump the unoptimized Intermediate Representation
+- `-opt`    : Dump the optimized Intermediate Representation
+- `-asm`    : Dump the final x86-64 Intel assembly output
 
-###  **Assemble and Link**
-
+**Example:**
 ```bash
-# Assemble the .s into an object file
-gcc -c test/sample.tc.s -o test/sample.o
-
-# Link the object into an executable
-gcc test/sample.o -o prog
-
-# Run the program
-./prog
-
-# Show the return value of main()
-echo $?
+./cppx86_test -ast my_file.cpp
 ```
-
-The final number printed (`$?`) is the **return value** from `main()` — the output of your compiled program.
 
 ---
 
-##  **Example Input File (`test/sample.tc`)**
+## **Language Subset Supported**
 
-```c
+- **Types**: `int`, `float`, `void`, pointers, arrays.
+- **Control Flow**: `if`, `else`, `while`, `return`.
+- **Expressions**: Binary operations, unary operations, assignments, variable access.
+- **Object Model**: `class` and `struct` declarations, member fields, method declarations, and member access via `.` and `->` operators.
+
+### **Example Input**
+```cpp
+class Vector {
+    int x;
+    int y;
+};
+
 int main() {
-    int x = 10;
-    int y = 20;
-    int z;
-    z = x + y * 2;
-    if (z > 40) {
-        z = z - 10;
-    } else {
-        z = z + 5;
+    int counter = 10;
+    while (counter > 0) {
+        counter = counter - 1;
     }
-    while (x < 20) {
-        x = x + 1;
-    }
-    return z;
+    return counter;
 }
 ```
 
 ---
 
-##  **How It Works — Stage by Stage**
+## **Historical Note**
 
-### 1. **Lexical Analysis (Lexer)**
-- Reads source code character-by-character.
-- Groups sequences into **tokens** (identifiers, keywords, numbers, operators).
-- Removes whitespace and comments.
+The original monolithic compiler prototype can be found in the `legacy/` directory. The repository has since been overhauled into a modular pipeline following the 18-phase implementation roadmap.
 
-Example:
-```c
-int x = 5 + 3;
-```
-→ Tokens: `KwInt`, `Identifier(x)`, `Assign`, `Number(5)`, `Plus`, `Number(3)`, `Semicolon`
-
----
-
-### 2. **Parsing (Recursive Descent Parser)**
-- Parses tokens into an **AST** following grammar rules.
-- Supports expressions, declarations, `if`/`else`, `while`, and `return`.
-- Produces structured nodes for code generation.
-
----
-
-### 3. **AST Representation**
-- AST node types include: `Integer`, `VarExpr`, `Binary`, `DeclStmt`, `ExprStmt`, `ReturnStmt`, `IfStmt`, `WhileStmt`, `BlockStmt`, `Function`, `Program`.
-- Nodes are stored using `std::unique_ptr` for safe ownership semantics.
-
----
-
-### 4. **Code Generation**
-- Translates AST nodes into **x86-64 Intel syntax** assembly using a simple stack-frame model:
-  - Function prologue: `push rbp; mov rbp, rsp; sub rsp, <frameSize>`
-  - Locals stored at `[rbp - offset]` (4 bytes per `int`)
-  - Expression evaluation uses `eax`, `ebx`, `push`/`pop` temporaries
-  - Control flow is implemented using labels `.L0`, `.L1`, etc.
-  - Function return in `eax`
-
----
-
-## **Generated Assembly (Excerpt)**
-
-```asm
-    .text
-    .global main
-main:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 16
-    mov eax, 10
-    mov DWORD PTR [rbp-4], eax
-    mov eax, 20
-    mov DWORD PTR [rbp-8], eax
-    ...
-    add rsp, 16
-    pop rbp
-    ret
-```
-
-> The above is Intel-style assembly; Linux `gcc`/`as` on x86-64 will assemble it directly.
-
----
-
-##  **Limitations & Known Issues**
-
-- **Language subset only**: currently supports `int` type only, functions without parameters, local variables, arithmetic, comparisons, `if`/`else`, `while`, and `return`.
-- **Simple code generation**: uses `push`/`pop` and `eax/ebx` temporaries — not optimized.
-- **Return handling**: early `return` handling may need refinement (epilogue correctness); can be improved.
-- **No function calls/params**: calling convention and parameter passing are not implemented yet.
-- **Target platform**: emits x86-64 (Intel syntax) for System V ABI (Linux). macOS or ARM targets require codegen changes.
-
----
-
-##  **Platform Notes (macOS / Apple Silicon)**
-
-- On **macOS (arm64 / Apple Silicon)** the native assembler expects ARM64 assembly and will not accept Intel-style x86-64 `.s` files. You have options:
-  1. **Use Docker** (recommended) to run an x86_64 Linux container and assemble/run inside it.
-  2. **Use an x86_64 toolchain** on macOS (via Rosetta or cross-toolchain), and assemble with flags like `clang -x assembler -arch x86_64`.
-  3. **Modify codegen** to emit **AT&T syntax** or an **ARM64 backend** — I can help add these options.
-
-**Docker example (quick test on macOS):**
-```bash
-# from project root (requires Docker installed)
-docker run --rm -it -v "$(pwd)":/src -w /src ubuntu:22.04 bash
-# inside container:
-apt update && apt install -y build-essential
-gcc -no-pie -o prog test/sample.tc.s
-./prog && echo $?
-```
-
----
-
-##  **Suggested Next Improvements (Roadmap)**
-
-- [ ] Fix **early return** epilogue (proper stack unwind on `return`)
-- [ ] Add **function parameters** & **call support** using System V ABI (`rdi`, `rsi`, ...)
-- [ ] Implement **type checking** and better error messages
-- [ ] Add **simple optimizations** (constant folding, dead-code elimination)
-- [ ] Implement a **register allocator** (linear scan or graph-coloring)
-- [ ] Provide **LLVM IR** backend (optional) for better code generation
-- [ ] Add **unit tests** & CI (GitHub Actions)
-
----
-
-##  **Contributing**
-
-Contributions are welcome! If you want to help:
-1. Fork the repository
-2. Create a feature branch (e.g., `feature/params`)
-3. Open a pull request with a clear description of your changes
-
-Please follow this repository's code style and add tests for any new features.
-
----
-
-]
 > _“Compilers convert human intent into machine action — and learning them is one of the most rewarding journeys in systems programming.”_
