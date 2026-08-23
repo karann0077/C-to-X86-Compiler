@@ -270,8 +270,9 @@ Token Lexer::advanceToken() {
         case '\'':
             return charLiteral();
 
-        default:
-            return errorToken("Unexpected character");
+        default: {
+            return errorToken("Unexpected character: '" + std::string(1, c) + "'");
+        }
     }
 }
 

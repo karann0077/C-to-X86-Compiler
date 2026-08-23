@@ -62,6 +62,7 @@ int main(int argc, char* argv[]) {
     std::string source((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     
     DiagnosticEngine diags;
+    diags.setSource(source);
 
     if (dumpTokens) {
         Lexer lexer(source, filename, diags);

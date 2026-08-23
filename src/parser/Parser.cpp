@@ -70,13 +70,39 @@ void Parser::expect(TokenKind kind, const std::string& message) {
         advance();
     } else {
         diags.error(currentToken.location, message);
-        // Error recovery: skip until semicolon or EOF
-        while (currentToken.kind != TokenKind::Semicolon && currentToken.kind != TokenKind::EndOfFile) {
-            advance();
-        }
+        // Do not blindly skip here, let the caller or parse functions handle synchronization
+    }
+}
+
+void Parser::synchronize(bool isGlobal) {
+    // Panic mode error recovery
+    advance();
+
+    while (currentToken.kind != TokenKind::EndOfFile) {
         if (currentToken.kind == TokenKind::Semicolon) {
             advance();
+            return;
         }
+
+        switch (currentToken.kind) {
+            case TokenKind::KwClass:
+            case TokenKind::KwStruct:
+            case TokenKind::KwInt:
+            case TokenKind::KwFloat:
+            case TokenKind::KwVoid:
+                return;
+            case TokenKind::KwIf:
+            case TokenKind::KwWhile:
+            case TokenKind::KwFor:
+            case TokenKind::KwReturn:
+                if (!isGlobal) return;
+                break;
+            default:
+                // Keep skipping
+                break;
+        }
+
+        advance();
     }
 }
 
@@ -87,7 +113,7 @@ TranslationUnitPtr Parser::parse() {
         if (decl) {
             tu->addDeclaration(std::move(decl));
         } else {
-            advance(); // skip to avoid infinite loop on error
+            synchronize(true); // skip until next valid boundary to recover
         }
     }
     return tu;
@@ -240,6 +266,8 @@ std::unique_ptr<CompoundStmt> Parser::parseBlock() {
     while (currentToken.kind != TokenKind::RBrace && currentToken.kind != TokenKind::EndOfFile) {
         if (auto stmt = parseStatement()) {
             block->addStatement(std::move(stmt));
+        } else {
+            synchronize();
         }
     }
     
@@ -299,6 +327,9 @@ StmtPtr Parser::parseStatement() {
     
     // Otherwise, expression statement
     ExprPtr expr = parseExpression();
+    if (!expr) {
+        return nullptr;
+    }
     expect(TokenKind::Semicolon, "Expected ';' after expression statement");
     return std::make_unique<ExprStmt>(std::move(expr));
 }

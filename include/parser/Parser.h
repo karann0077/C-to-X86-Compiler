@@ -23,6 +23,7 @@ private:
     void advance();
     bool match(TokenKind kind);
     void expect(TokenKind kind, const std::string& message);
+    void synchronize(bool isGlobal = false);
 
     DeclPtr parseDeclaration();
     DeclPtr parseRecordDecl();
